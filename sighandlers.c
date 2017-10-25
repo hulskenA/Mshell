@@ -16,8 +16,14 @@
  * wrapper for the sigaction function
  */
 int sigaction_wrapper(int signum, handler_t * handler) {
-    printf("sigaction_wrapper : To be implemented\n");
-    return 1;
+  struct sigaction sa;
+
+  sa.sa_handler = handler;
+  assert(sigemptyset(&sa.sa_mask) != -1);
+  sa.sa_flags = 0;
+  assert(sigaction(SIGINT, &sa, NULL) != -1);
+
+  return 1;
 }
 
 /*
