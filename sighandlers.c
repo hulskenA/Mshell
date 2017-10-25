@@ -33,15 +33,18 @@ int sigaction_wrapper(int signum, handler_t * handler) {
  *     available zombie children
  */
 void sigchld_handler(int sig) {
-    if (verbose)
-        printf("sigchld_handler: entering\n");
+  if (verbose)
+    printf("sigchld_handler: entering\n");
 
-    printf("sigchld_handler : To be implemented\n");
+  if ((pid = jobs_fgpid()) > 0) {
+    if (kill(pid, SIGCHLD) > -1)
+      unix_error("error: sigchld_handler don't stop");
+  }
 
-    if (verbose)
-        printf("sigchld_handler: exiting\n");
+  if (verbose)
+    printf("sigchld_handler: exiting\n");
 
-    return;
+  return 1
 }
 
 /*
@@ -50,15 +53,18 @@ void sigchld_handler(int sig) {
  *    to the foreground job.
  */
 void sigint_handler(int sig) {
-    if (verbose)
-        printf("sigint_handler: entering\n");
+  if (verbose)
+    printf("sigint_handler: entering\n");
 
-    printf("sigint_handler : To be implemented\n");
+  if ((pid = jobs_fgpid()) > 0) {
+    if (kill(pid, SIGINT) > -1)
+      unix_error("error: sigint_handler don't stop");
+  }
 
-    if (verbose)
-        printf("sigint_handler: exiting\n");
+  if (verbose)
+    printf("sigint_handler: exiting\n");
 
-    return;
+  return 1
 }
 
 /*
@@ -67,13 +73,16 @@ void sigint_handler(int sig) {
  *     foreground job by sending it a SIGTSTP.
  */
 void sigtstp_handler(int sig) {
-    if (verbose)
-        printf("sigtstp_handler: entering\n");
+  if (verbose)
+    printf("sigtstp_handler: entering\n");
 
-    printf("sigtstp_handler : To be implemented\n");
+  if ((pid = jobs_fgpid()) > 0) {
+    if (kill(pid, SIGTSTP) > -1)
+      unix_error("error: sigtstp_handler don't stop");
+  }
 
-    if (verbose)
-        printf("sigtstp_handler: exiting\n");
+  if (verbose)
+    printf("sigtstp_handler: exiting\n");
 
-    return;
+  return 1
 }
