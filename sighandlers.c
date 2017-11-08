@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <assert.h>
 
 
 #include "jobs.h"
@@ -20,8 +21,8 @@ int sigaction_wrapper(int signum, handler_t * handler) {
 
   sa.sa_handler = handler;
   assert(sigemptyset(&sa.sa_mask) != -1);
-  sa.sa_flags = 0;
-  assert(sigaction(SIGINT, &sa, NULL) != -1);
+  sa.sa_flags = SA_RESTART;
+  assert(sigaction(signum, &sa, NULL) != -1);
 
   return 1;
 }
@@ -33,18 +34,52 @@ int sigaction_wrapper(int signum, handler_t * handler) {
  *     available zombie children
  */
 void sigchld_handler(int sig) {
+  int status,rsig;
+  struct job_t *job;
+  pid_t pid;
+  sig=sig;
+  
   if (verbose)
     printf("sigchld_handler: entering\n");
 
-  if ((pid = jobs_fgpid()) > 0) {
-    if (kill(pid, SIGCHLD) > -1)
-      unix_error("error: sigchld_handler don't stop");
+  if ((pid=waitpid(-1,&status,WNOHANG | WUNTRACED))>0) {
+    
+    job = jobs_getjobpid(pid);
+      
+    if (WIFEXITED(status)) {
+      /* Exit normale */
+      if (verbose)
+	printf("sigchld_handler: un job a exit\n");
+      jobs_deletejob(pid);
+    }
+    else if (WIFSTOPPED(status)) {
+      if (verbose)
+	printf("sigchld_handler: un job est stoppe\n");
+      /* Le fils a ete stoppe */
+      job->jb_state = ST;
+    }
+    else if (WIFSIGNALED(status)) {
+      /* Le fils a recu un signal */
+      rsig = WTERMSIG(status);
+      if (verbose)
+	printf("sigchld_handler: signal recu %d\n",sig);
+      if (rsig == SIGKILL) {
+	if (verbose)
+	  printf("sigchld_handler: signal recu SIGKILL\n");
+	jobs_deletejob(pid);
+      }
+      if (rsig == SIGTERM) {
+	jobs_deletejob(pid);
+      }
+      if (rsig == SIGINT) {
+	jobs_deletejob(pid);
+      }
+    }
+    else 
+      unix_error("sigchld_handler: unknown case\n");
   }
-
   if (verbose)
     printf("sigchld_handler: exiting\n");
-
-  return 1
 }
 
 /*
@@ -53,18 +88,23 @@ void sigchld_handler(int sig) {
  *    to the foreground job.
  */
 void sigint_handler(int sig) {
+  pid_t pid;
+  sig=sig;
+  
   if (verbose)
     printf("sigint_handler: entering\n");
 
   if ((pid = jobs_fgpid()) > 0) {
-    if (kill(pid, SIGINT) > -1)
+    printf("%d\n",pid);
+    if (kill(pid, SIGINT) > -1) {
+      ;
+    }
+    else 
       unix_error("error: sigint_handler don't stop");
   }
 
   if (verbose)
     printf("sigint_handler: exiting\n");
-
-  return 1
 }
 
 /*
@@ -73,16 +113,20 @@ void sigint_handler(int sig) {
  *     foreground job by sending it a SIGTSTP.
  */
 void sigtstp_handler(int sig) {
+  pid_t pid;
+  sig=sig;
+  
   if (verbose)
     printf("sigtstp_handler: entering\n");
 
   if ((pid = jobs_fgpid()) > 0) {
     if (kill(pid, SIGTSTP) > -1)
+      ;
+    else
       unix_error("error: sigtstp_handler don't stop");
   }
 
   if (verbose)
     printf("sigtstp_handler: exiting\n");
 
-  return 1
 }

@@ -64,49 +64,51 @@ struct job_t *treat_argv(char **argv) {
 
 /* do_bg - Execute the builtin bg command */
 void do_bg(char **argv) {
-    printf("do_bg : To be implemented\n");
-
-    return;
+  struct job_t* job = treat_argv(argv);
+  if(kill(job->jb_pid,SIGCONT))
+    job->jb_state = BG;
+  else
+    unix_error("do_bg: error sending SIGCONT to child");
 }
 
 /* waitfg - Block until process pid is no longer the foreground process */
 void waitfg(pid_t pid) {
-    printf("waitfg : To be implemented\n");
-
-    return;
+  struct job_t *job = jobs_getjobpid(pid);
+  while (job->jb_state == FG)
+    sleep(1);
 }
 
 /* do_fg - Execute the builtin fg command */
 void do_fg(char **argv) {
-    printf("do_fg : To be implemented\n");
-
-    return;
+  struct job_t * job = treat_argv(argv);
+  if(kill(job->jb_pid,SIGCONT)>-1) {
+    job->jb_state = FG;
+    waitfg(job->jb_pid);
+  } else 
+    unix_error("do_fg: error sending SIGCONT to child");
 }
 
 /* do_stop - Execute the builtin stop command */
 void do_stop(char **argv) {
-    printf("do_stop : To be implemented\n");
-
-    return;
+  struct job_t * job = treat_argv(argv);
+  kill(job->jb_pid,SIGTSTP);
 }
 
 /* do_kill - Execute the builtin kill command */
 void do_kill(char **argv) {
-    printf("do_kill : To be implemented\n");
-
-    return;
+  struct job_t * job = treat_argv(argv);
+  if(kill(job->jb_pid,SIGKILL)<0)
+    unix_error("do_kill: error sending SIGKILL to child");
 }
 
 /* do_exit - Execute the builtin exit command */
 void do_exit() {
     printf("do_exit : To be implemented\n");
-
+    
     return;
 }
 
-/* do_jobs - Execute the builtin fg command */
+/* do_jobs - Execute the builtin jobs command */
 void do_jobs() {
-    printf("do_jobs : To be implemented\n");
-
-    return;
+  jobs_listjobs();
 }
