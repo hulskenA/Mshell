@@ -65,7 +65,9 @@ struct job_t *treat_argv(char **argv) {
 /* do_bg - Execute the builtin bg command */
 void do_bg(char **argv) {
   struct job_t* job = treat_argv(argv);
-  if(kill(job->jb_pid,SIGCONT))
+  /* If there are no jobs*/
+  if (job==NULL) return;
+  if(kill(job->jb_pid,SIGCONT)>-1)
     job->jb_state = BG;
   else
     unix_error("do_bg: error sending SIGCONT to child");
@@ -81,6 +83,8 @@ void waitfg(pid_t pid) {
 /* do_fg - Execute the builtin fg command */
 void do_fg(char **argv) {
   struct job_t * job = treat_argv(argv);
+  /* If there are no jobs*/
+  if (job==NULL) return;
   if(kill(job->jb_pid,SIGCONT)>-1) {
     job->jb_state = FG;
     waitfg(job->jb_pid);
@@ -103,9 +107,12 @@ void do_kill(char **argv) {
 
 /* do_exit - Execute the builtin exit command */
 void do_exit() {
-    printf("do_exit : To be implemented\n");
-    
-    return;
+  struct job_t* job;
+  while((job=jobs_getstoppedjob()))
+    /* Reap all the stopped child processes before suiciding */
+    kill(job->jb_pid,SIGKILL);
+  /* Suicide */
+  exit(EXIT_SUCCESS);
 }
 
 /* do_jobs - Execute the builtin jobs command */
