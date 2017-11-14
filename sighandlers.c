@@ -49,12 +49,12 @@ void sigchld_handler(int sig) {
     if (WIFEXITED(status)) {
       /* Exit normale */
       if (verbose)
-	printf("sigchld_handler: un job a exit\n");
+	printf("sigchld_handler: a job has exited\n");
       jobs_deletejob(pid);
     }
     else if (WIFSTOPPED(status)) {
       if (verbose)
-	printf("sigchld_handler: un job est stoppe\n");
+	printf("sigchld_handler: a job has stopped\n");
       /* Le fils a ete stoppe */
       job->jb_state = ST;
     }
