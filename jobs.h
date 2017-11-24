@@ -9,12 +9,15 @@
 enum jstate { UNDEF, BG, FG, ST };
 
 struct job_t {                  /* The job struct       */
-    pid_t jb_pid;               /* job PID              */
-    int jb_jid;                 /* job ID [1, 2, ...]   */
-    enum jstate jb_state;       /* UNDEF, BG, FG, or ST */
-    char jb_cmdline[MAXLINE];   /* command line         */
+  pid_t jb_pid;               /* job PID              */
+  int jb_jid;                 /* job ID [1, 2, ...]   */
+  enum jstate jb_state;       /* UNDEF, BG, FG, or ST */
+  char jb_cmdline[MAXLINE];   /* command line         */
 };
 
+
+/* contains_pipe - Says whether the string line contains the | symbol */
+extern int contains_pipe(char *line);
 
 /*** Helper routines that manipulate the job list ***/
 

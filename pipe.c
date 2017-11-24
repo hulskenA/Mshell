@@ -5,24 +5,30 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <string.h>
 #include "pipe.h"
 #include "cmd.h"
 #include "jobs.h"
 
 void do_pipe(char *cmds[MAXCMDS][MAXARGS], int nbcmd, int bg) {
   int fd_n[MAXCMDS][2], i, j;
-  jobs_addjob(getpid(),( bg==1 ? BG : FG),**cmds);
-  for (i=0;i<nbcmd-1;i++)
+  pid_t pid; /* the pid of the first child process */
+  char cmdline[MAXLINE] = "\0";
+  for (i=0;i<nbcmd-1;i++) {
+    strcat(cmdline,*cmds[i]);
+    strcat(cmdline," | ");
     pipe(fd_n[i]);
-
+  }
+  strcat(cmdline,*cmds[nbcmd-1]);
   /* premier fork */
-  switch (fork()) {
+  switch (pid=fork()) {
   case -1:
     perror("error fork");
     exit(EXIT_FAILURE);
     break;
   case 0:
     /* code */
+    assert(setpgid(getpid(),getpid())==0); /* The first son's pgid must be his own pid */
     close(fd_n[0][0]);
     for (i=1;i<nbcmd-1;i++) {
       close(fd_n[i][0]);
@@ -33,7 +39,8 @@ void do_pipe(char *cmds[MAXCMDS][MAXARGS], int nbcmd, int bg) {
     execvp(cmds[0][0],cmds[0]);
     exit(EXIT_FAILURE); /* shouldn't reach this code */
     break;
-  default:;
+  default:
+    assert(setpgid(pid,pid)==0);
   }
 
   /* fork intermediere 
@@ -46,6 +53,7 @@ void do_pipe(char *cmds[MAXCMDS][MAXARGS], int nbcmd, int bg) {
       break;
     case 0:
       /* code */
+      setpgid(getpid(),pid); /* We must set all the other child processes' pgid to the first child's pid */
       for (j=0;j<i-1;j++) {
 	close(fd_n[j][0]);
 	close(fd_n[j][1]);
@@ -75,6 +83,7 @@ void do_pipe(char *cmds[MAXCMDS][MAXARGS], int nbcmd, int bg) {
     break;
   case 0:
     /* code */
+    setpgid(getpid(),pid); /* Same as for middle children */
     close(fd_n[nbcmd-2][1]);
     for (i=0;i<nbcmd-2;i++) {
       close(fd_n[i][0]);
@@ -87,12 +96,17 @@ void do_pipe(char *cmds[MAXCMDS][MAXARGS], int nbcmd, int bg) {
     break;
   default:;
   }
-
   for (i=0;i<nbcmd-1;i++) {
     close(fd_n[i][0]);
     close(fd_n[i][1]);
   }
+  /* Jobs list management */
+  if (verbose)
+    printf("[INFO] do_pipe: adding new pipe job (pgid:%d) to jobs list",pid);
+  jobs_addjob(pid,( bg==1 ? BG : FG),cmdline);
   if (!bg) {
-    waitfg(getpid());
+    if (verbose)
+      printf("[INFO] do_pipe: waiting foreground...\n");
+    waitfg(pid);
   }
 }

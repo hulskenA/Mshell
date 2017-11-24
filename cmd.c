@@ -30,6 +30,14 @@ void do_help() {
     printf("ctrl-z and ctrl-c can be used to send a SIGTSTP and a SIGINT, respectively\n\n");
 }
 
+int contains_pipe(char *line) {
+  char c;
+  while ((c=(*(line++))))
+    if (c=='|')
+      return 1;
+  return 0;
+}
+
 /* treat_argv - Determine pid or jobid and return the associated job structure */
 struct job_t *treat_argv(char **argv) {
     struct job_t *jobp = NULL;
@@ -61,13 +69,16 @@ struct job_t *treat_argv(char **argv) {
     return jobp;
 }
 
-
 /* do_bg - Execute the builtin bg command */
 void do_bg(char **argv) {
   struct job_t* job = treat_argv(argv);
+  pid_t pid;
   /* If there are no jobs*/
   if (job==NULL) return;
-  if(kill(job->jb_pid,SIGCONT)>-1)
+  pid = job->jb_pid;
+  if (contains_pipe(job->jb_cmdline))
+    pid = -pid; /* man kill(2) */
+  if(kill(pid,SIGCONT)>-1)
     job->jb_state = BG;
   else
     unix_error("do_bg: error sending SIGCONT to child");
@@ -76,16 +87,23 @@ void do_bg(char **argv) {
 /* waitfg - Block until process pid is no longer the foreground process */
 void waitfg(pid_t pid) {
   struct job_t *job = jobs_getjobpid(pid);
-  while (job->jb_state == FG)
+  while (job->jb_state == FG) {
+    if (verbose)
+      printf("[INFO] waitfg: still waiting...\n");
     sleep(1);
+  }
 }
 
 /* do_fg - Execute the builtin fg command */
 void do_fg(char **argv) {
   struct job_t * job = treat_argv(argv);
+  pid_t pid;
   /* If there are no jobs*/
   if (job==NULL) return;
-  if(kill(job->jb_pid,SIGCONT)>-1) {
+  pid = job->jb_pid;
+  if (contains_pipe(job->jb_cmdline))
+    pid = -pid;
+  if(kill(pid,SIGCONT)>-1) {
     job->jb_state = FG;
     waitfg(job->jb_pid);
   } else 
@@ -95,23 +113,53 @@ void do_fg(char **argv) {
 /* do_stop - Execute the builtin stop command */
 void do_stop(char **argv) {
   struct job_t * job = treat_argv(argv);
-  kill(job->jb_pid,SIGTSTP);
+  pid_t pid;
+  if (job==NULL) return;
+  pid = job->jb_pid;
+  if (contains_pipe(job->jb_cmdline))
+    pid = -pid;
+  if(kill(pid,SIGTSTP)<0)
+    perror("kill error");;
 }
 
 /* do_kill - Execute the builtin kill command */
 void do_kill(char **argv) {
   struct job_t * job = treat_argv(argv);
-  if(kill(job->jb_pid,SIGKILL)<0)
-    unix_error("do_kill: error sending SIGKILL to child");
+  pid_t pid;
+  if (job==NULL) return;
+  pid = job->jb_pid;
+  if (contains_pipe(job->jb_cmdline))
+    pid = -pid;
+  if(kill(pid,SIGKILL)<0)
+    unix_error("[ERROR] do_kill: error sending SIGKILL to child");
 }
 
 /* do_exit - Execute the builtin exit command */
 void do_exit() {
   struct job_t* job;
-  while((job=jobs_getstoppedjob()))
+  pid_t pid;
+  if (verbose) {
+    printf("[INFO] do_exit: entering\n");
+    printf("[INFO] do_exit: killing all stopped jobs...\n");
+  }
+  while((job=jobs_getstoppedjob())) {
     /* Reap all the stopped child processes before suiciding */
-    kill(job->jb_pid,SIGKILL);
-  /* Suicide */
+    if (verbose){
+      printf("[INFO] do_exit: got a job (pid:%d)\n",pid);
+    }
+    if (contains_pipe(job->jb_cmdline)) {
+      if (verbose)
+	printf("[INFO] do_exit: pipe group job\n");
+      pid = -job->jb_pid;
+    }
+    else {
+      if (verbose)
+	printf("[INFO] do_exit: regular job\n");
+      pid = job->jb_pid;
+    }
+    if (kill(pid,SIGKILL)<0)
+      unix_error("[ERROR] do_exit: falied to send SIGKILL\n");
+  }
   exit(EXIT_SUCCESS);
 }
 

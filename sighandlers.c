@@ -39,33 +39,42 @@ void sigchld_handler(int sig) {
   pid_t pid;
   sig=sig;
   
-  if (verbose)
-    printf("sigchld_handler: entering\n");
+  if (verbose) {
+    printf("[INFO] sigchld_handler: entering\n");
+    printf("[INFO] sigchld_handler: getting pid of child...\n");
+  }
 
-  if ((pid=waitpid(-1,&status,WNOHANG | WUNTRACED))>0) {
-    
+  while ((pid=waitpid(-1,&status,WNOHANG | WUNTRACED))>0) {
+    if (verbose)
+      printf("[INFO] sigchld_handler: sucessfully got pid (pid:%d)!\n",pid);
     job = jobs_getjobpid(pid);
-      
+    
     if (WIFEXITED(status)) {
       /* Exit normale */
       if (verbose)
-	printf("sigchld_handler: a job has exited\n");
+	printf("[INFO] sigchld_handler: a job has exited normally\n");
       jobs_deletejob(pid);
     }
     else if (WIFSTOPPED(status)) {
       if (verbose)
-	printf("sigchld_handler: a job has stopped\n");
+	printf("[INFO] sigchld_handler: a job has been stopped\n");
       /* Le fils a ete stoppe */
-      job->jb_state = ST;
+      if (job!=NULL) {
+	if (verbose)
+	  printf("[INFO] sigchld_handler: updating jb_state in list\n");;
+	job->jb_state = ST;
+      } else
+	if (verbose)
+	  printf("[INFO] sigchld_handler: ignoring because a process in a pipe group\n");
     }
     else if (WIFSIGNALED(status)) {
       /* Le fils a recu un signal */
       rsig = WTERMSIG(status);
       if (verbose)
-	printf("sigchld_handler: signal recu %d\n",sig);
+	printf("[INFO] sigchld_handler: child recieved signal %d!\n",sig);
       if (rsig == SIGKILL) {
 	if (verbose)
-	  printf("sigchld_handler: signal recu SIGKILL\n");
+	  printf("[INFO] sigchld_handler: child recieved SIGKILL\n");
 	jobs_deletejob(pid);
       }
       if (rsig == SIGTERM) {
@@ -76,10 +85,10 @@ void sigchld_handler(int sig) {
       }
     }
     else 
-      unix_error("sigchld_handler: unknown case\n");
+      unix_error("[INFO] sigchld_handler: unknown case\n");
   }
   if (verbose)
-    printf("sigchld_handler: exiting\n");
+    printf("[INFO] sigchld_handler: exiting\n");
 }
 
 /*
@@ -89,22 +98,28 @@ void sigchld_handler(int sig) {
  */
 void sigint_handler(int sig) {
   pid_t pid;
+  struct job_t *job;
   sig=sig;
   
-  if (verbose)
-    printf("sigint_handler: entering\n");
+  if (verbose){
+    printf("[INFO] sigint_handler: entering\n");
+    printf("[INFO] sigint_handler: getting pid of fg process...\n");
+  }
 
   if ((pid = jobs_fgpid()) > 0) {
-    printf("%d\n",pid);
-    if (kill(pid, SIGINT) > -1) {
-      ;
+    if (verbose)
+      printf("[INFO] sigint_handler: sucessfully got pid of fg : %d\n",pid);
+    job = jobs_getjobpid(pid);
+    if (kill((contains_pipe(job->jb_cmdline)?-pid:pid), SIGINT) > -1) {
+      if (verbose)
+	printf("[INFO] sigint_handler: sucessfully sent SIGINT to fg process!\n");
     }
     else 
-      unix_error("error: sigint_handler don't stop");
+      unix_error("[ERROR] sigint_handler: error sending SIGINT to fg");
   }
 
   if (verbose)
-    printf("sigint_handler: exiting\n");
+    printf("[INFO] sigint_handler: exiting\n");
 }
 
 /*
@@ -114,19 +129,38 @@ void sigint_handler(int sig) {
  */
 void sigtstp_handler(int sig) {
   pid_t pid;
+  struct job_t *job;
   sig=sig;
+
   
-  if (verbose)
-    printf("sigtstp_handler: entering\n");
+  if (verbose) {
+    printf("[INFO] sigtstp_handler: entering\n");
+    printf("[INFO] sigtstp_handler: getting foreground process id...\n");
+    fflush(stdout);
+  }
 
   if ((pid = jobs_fgpid()) > 0) {
-    if (kill(pid, SIGTSTP) > -1)
-      ;
+    if (verbose) {
+      printf("[INFO] sigtstp_handler: got pid(%d) of fg process!\n",pid);
+      fflush(stdout);
+    }
+    job = jobs_getjobpid(pid);
+    if (contains_pipe(job->jb_cmdline)){
+      if (verbose) {
+	printf("[INFO] sigtstp_handler: process uses pipes!!\n");
+	fflush(stdout);
+      }
+      pid = -pid;
+    }
+    if (kill(pid, SIGTSTP) > -1) {
+      if (verbose)
+	printf("[INFO] sigtstp_handler: sucessfully sent SIGTSTP\n");
+    }
     else
-      unix_error("error: sigtstp_handler don't stop");
+      unix_error("[ERROR] sigtstp_handler: error sending SIGTSTP to process\n");
   }
 
   if (verbose)
-    printf("sigtstp_handler: exiting\n");
+    printf("[INFO] sigtstp_handler: exiting\n");
 
 }
