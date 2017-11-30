@@ -15,7 +15,7 @@ Pour illuster cela on peut taper la sequence de code suivante:
 mshell> xeyes | xeyes &
 mshell> jobs
 [1] (PID) Running xeyes | xeyes
-mshell> stop **PID**
+mshell> stop PID
 mshell> jobs
 [1] (PID) Stopped xeyes | xeyes
 mshell> fg %1
