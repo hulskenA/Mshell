@@ -2,42 +2,29 @@
 
 Ce dépôt correspond au TP de PDS
 « [mshell](http://www.fil.univ-lille1.fr/~hym/e/pds/tp/tdjobs.html) ».
-Il contient un canevas de départ pour votre gestionnaire de travaux.
-Vous y trouverez notamment :
 
--   un `Makefile` ;
--   `mshell.c` : contient entre autres le `main()` ;
--   `cmd.c`, `cmd.h` : contient les commandes `fg`, `bg`, `stop`...
--   `jobs.c`, `jobs.h` : contient la bibliothèque gérant les
-    structures de données associées aux jobs ;
--   `sighandlers.c`, `sighandlers.h` : contient les traitants de
-    signaux ;
--   `common.c`, `common.h` : contient des données et fonctions
-    communes aux différents fichiers.
+Pour compiler le mshell tapez la commande `make` puis ensuite pour l'executer `./mshell`.
 
-Dans un premier temps, vous n’aurez qu’à modifier les fichiers `cmd.c`
-et `sighandlers.c`.
-Les squelettes des fonctions à implémenter sont déjà donnés ; aucune
-autre fonction n’est nécessaire.
+Quelques particularitées: La manière dont nous avons implementé notre `do_pipe` fait que par exemple
+la commande `cat pipe.c | grep #include | wc -l` sera considerée comme **un seul processus** par le mshell!
+De ce fait si on consulte la liste des jobs (avec la commande `jobs`). On voit s'afficher un **pid** pour ce
+processus. Si on stop ou kill ce processus, tous les processus *fils* le seront également.
+Pour illuster cela on peut taper la sequence de code suivante:
 
-Le mini-shell peut fonctionner en mode _verbose_ (`mshell -v`) ce qui
-permet d’avoir des informations sur les traitants et fonctions
-sollicités, etc. Une variable globale _verbose_ est prévue à cet effet.
-Pensez à l’utiliser ! Le fichier `jobs.c` contient un exemple de son
-utilisation, à vous de voir selon les situations quelles informations
-afficher.
+```bash
+mshell> xeyes | xeyes &
+mshell> jobs
+[1] (**[PID]**) Running xeyes | xeyes
+mshell> stop **[PID]**
+mshell> jobs
+[1] (**[PID]**) Stopped xeyes | xeyes
+mshell> fg %1
+^Z
+mshell> jobs
+[1] (**[PID]**) Stopped xeyes | xeyes
+mshell> kill **[PID]**
+mshell> jobs
+mshell> exit
+```
 
-Pour l’instant la compilation du `mshell` affiche quelques
-avertissements dus au code manquant. Vous devrez pouvoir justifier
-ceux qui resteront à la fin de votre travail.
-
-
-##  Instructions pour rendre votre travail avec gitlab
-
-Pour permettre à votre chargé de TD de suivre votre travail sur ce projet :
-
--   *forkez* ce dépôt (bouton _Fork_),
--   dans le dépôt *forké*, ajoutez votre chargé de TD aux membres du
-    projet avec l’accès _Developer_,
--   éditez ce fichier `README.md` pour indiquez vos noms (membres du
-    binôme) et supprimer ce paragraphe d’instructions.
+On remarque bien qu'en utilisant les commandes *stop* et *kill*, c'est à chaque fois les deux xeyes qui sont stoppé ou tué.
