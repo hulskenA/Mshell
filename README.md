@@ -14,15 +14,15 @@ Pour illuster cela on peut taper la sequence de code suivante:
 ```bash
 mshell> xeyes | xeyes &
 mshell> jobs
-[1] (**[PID]**) Running xeyes | xeyes
-mshell> stop **[PID]**
+[1] (**PID**) Running xeyes | xeyes
+mshell> stop **PID**
 mshell> jobs
-[1] (**[PID]**) Stopped xeyes | xeyes
+[1] (**PID**) Stopped xeyes | xeyes
 mshell> fg %1
 ^Z
 mshell> jobs
-[1] (**[PID]**) Stopped xeyes | xeyes
-mshell> kill **[PID]**
+[1] (**PID**) Stopped xeyes | xeyes
+mshell> kill **PID**
 mshell> jobs
 mshell> exit
 ```
